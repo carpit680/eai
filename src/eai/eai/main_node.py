@@ -5,6 +5,7 @@ from collections import deque
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from eai.kosmos2 import kosmos2
+from eai.llama_groq import llama3_groq
 from cv_bridge import CvBridge
 
 
@@ -24,7 +25,11 @@ class ImageSubscriber(Node):
         self.image_buffer = deque(maxlen=1)
         self.bridge = CvBridge()
         self.get_logger().info("Listening for RGB images on /camera/color/image_raw")
-        self.kosmos = kosmos2(self.get_logger)
+        self.kosmos = kosmos2(self.get_logger, debug=True)
+        self.llama = llama3_groq(self.get_logger, debug=True)
+
+        with open("/home/arpit/eai/eai/src/eai/eai/env_prompt.txt", 'r') as file:
+            self.env_prompt = file.read()
 
     def image_callback(self, msg):
         try:
@@ -33,9 +38,16 @@ class ImageSubscriber(Node):
             self.image_buffer.append(cv_image)
             processed_text, entities, captioned_image = self.kosmos.ground_frame(cv_image)
             self.image_pub.publish(self.bridge.cv2_to_imgmsg(captioned_image, "rgb8"))
-            self.get_logger().info(processed_text)
+
+            final_env_prompt = "The text below is the description of an environment as seen by a camera./n" + processed_text + self.env_prompt
+            env_description = self.llama.get_response(final_env_prompt)
+            env_description = env_description[env_description.find("```") + 3: env_description.find("```", env_description.find("```") + 3)]
+            self.get_logger().info("#############################")
+            self.get_logger().info(env_description)
+            self.get_logger().info("#############################")
+
         except Exception as e:
-            self.get_logger().error(f"Error converting image message: {e}")
+            self.get_logger().error(f"{e}")
 
 
 def main(args=None):
