@@ -14,7 +14,7 @@ class PlayHTTTS:
         
         self.client = Client(api_key, api_secret)
 
-    def generate_and_play_audio(self, text):
+    def generate_and_play_audio(self, text, speed=1.0):
         # Configure options for TTS
         options = TTSOptions(
             voice="s3://voice-cloning-zero-shot/d9ff78ba-d016-47f6-b0ef-dd630f59414e/female-cs/manifest.json",
@@ -36,3 +36,8 @@ class PlayHTTTS:
             play(audio)
         except:
             pass
+
+if __name__ == "__main__":
+    playht_tts = PlayHTTTS()
+    text = "Hello, this is a test of the text to speech conversion."
+    playht_tts.generate_and_play_audio(text, speed=0.8)

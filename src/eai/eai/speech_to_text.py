@@ -128,7 +128,7 @@ Answer:
                                 filtered_response = "Sorry, I didn't get that. Can you please try again?"
                                 response_req = "true"
                             # text_to_speech(filtered_response)
-                            tts(filtered_response)
+                            tts(filtered_response, 1.3)
                             print("#"*100)
                             last_speech_time = time.time()
                             # Clear the flag after speech playback is complete

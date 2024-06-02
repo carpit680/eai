@@ -27,3 +27,8 @@ class llama3_groq():
             print(f"RESPONSE: {chat_completion.choices[0].message.content}")
         
         return chat_completion.choices[0].message.content, self.conversation_history
+
+if __name__ == "__main__":
+    llm = llama3_groq(debug=True)
+    text = "Hello, this is a test of the llm model."
+    print(llm.get_response(text))
