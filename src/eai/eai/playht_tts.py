@@ -2,13 +2,16 @@ from pydub import AudioSegment
 from pydub.playback import play
 from pyht import Client, TTSOptions, Format
 from io import BytesIO
+import os
 
-# Initialize the PlayHTTTS object with your API credentials
-api_key = "vwGo6SD9f5WyraNyjFEnukXljgv1"
-api_secret = "ececd4cc81f14c1c94650142035a2de1"
 
 class PlayHTTTS:
-    def __init__(self, api_key = api_key, api_secret = api_secret):
+    def __init__(self, api_key=None, api_secret=None):
+        # get api key and api secret from env variables from the system
+        if api_key is None or api_secret is None:
+            api_key = os.environ.get("PLAY_HT_API_KEY")
+            api_secret = os.environ.get("PLAY_HT_API_SECRET")
+        
         self.client = Client(api_key, api_secret)
 
     def generate_and_play_audio(self, text):

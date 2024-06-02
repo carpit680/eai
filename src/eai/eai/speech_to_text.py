@@ -14,7 +14,13 @@ import json
 q = queue.Queue()
 
 llm = llama3_groq(False)
-tts = PlayHTTTS()
+try:
+    playht_tts = PlayHTTTS()
+    tts = playht_tts.generate_and_play_audio
+except:
+    print("PlayHTTTS out of credits. Using text_to_speech.")
+    tts = text_to_speech
+
 listening_lock = Lock()
 is_speaking = False
 
@@ -122,7 +128,7 @@ Answer:
                                 filtered_response = "Sorry, I didn't get that. Can you please try again?"
                                 response_req = "true"
                             # text_to_speech(filtered_response)
-                            tts.generate_and_play_audio(filtered_response)
+                            tts(filtered_response)
                             print("#"*100)
                             last_speech_time = time.time()
                             # Clear the flag after speech playback is complete
