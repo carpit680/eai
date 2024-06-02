@@ -19,20 +19,11 @@ class llama3_groq():
             messages=prompt,
             model="llama3-70b-8192",
         )
-        # chat_completion = self.client.chat.completions.create(
-        #     messages=[
-        #         {
-        #             "role": "user",
-        #             "content": content,
-        #         }
-        #     ],
-        #     model="llama3-70b-8192",
-        # )
-        
+
         # Add model response to conversation history
         self.conversation_history.append({"role": "llama3", "content": chat_completion.choices[0].message.content})
         
         if self.debug:
-            print(chat_completion.choices[0].message.content)
+            print(f"RESPONSE: {chat_completion.choices[0].message.content}")
         
         return chat_completion.choices[0].message.content, self.conversation_history

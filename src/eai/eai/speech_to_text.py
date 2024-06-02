@@ -3,20 +3,28 @@ import queue
 import sys
 import sounddevice as sd
 from vosk import Model, KaldiRecognizer
+from threading import Lock
 from llama import llama3_groq
 from text_to_speech import text_to_speech
+from playht_tts import PlayHTTTS
 import os
 import time
 import json
 
 q = queue.Queue()
 
-llm = llama3_groq(True)
+llm = llama3_groq(False)
+tts = PlayHTTTS()
+listening_lock = Lock()
+is_speaking = False
+
 def callback(indata, frames, time, status):
     """This is called (from a separate thread) for each audio block."""
+    global is_speaking
     if status:
         print(status, file=sys.stderr)
-    q.put(bytes(indata))
+    if not is_speaking:
+        q.put(bytes(indata))
 
 device = None
 
@@ -43,11 +51,13 @@ is_listening = False
 # Variable to track the time of the last speech activity
 last_speech_time = time.time()
 # Threshold for the duration of silence (5 seconds)
-silence_threshold = 2
+silence_threshold = 0.5
 just_responded = False
 name = "travis"
 responding = False
 conversation_history = []
+print("#"*100)
+
 try:
     with sd.RawInputStream(
             samplerate=samplerate,
@@ -61,21 +71,19 @@ try:
         print("Listening for the keyword")
 
         while True:
-            if not responding:
-                data = q.get()
-            else: continue
+            data = q.get()
             if rec.AcceptWaveform(data):
                 result = json.loads(rec.Result())
                 text = result.get('text', '')
                 
                 if not is_listening and name in text.lower():
-                    print("Keyword detected. Listening...")
-                    print(f"detected with kw {text}")
+                    print(f"Detected with Keyword: {text}")
                     is_listening = True
                     last_speech_time = time.time()
+                    if is_listening and "stop" in text.lower():
+                     is_listening = False
 
                 if is_listening:
-                    print("still listening")
                     if text.strip():
                         last_speech_time = time.time()
 
@@ -90,7 +98,7 @@ try:
                     elif text.strip():
                         if time.time() - last_speech_time > silence_threshold:
                             
-                            print(text)
+                            print(f"REQUEST: {text}")
                             prompt = f"""
 You are a personal virtual AI assistant named {name}. Reply in brief to the following question/instruction
 NOTE: Answer in a conversational tone so that it can smoothly be converted to speech. Do not use any symbols or special characters that would be awkward in a conversation. Use your response history given below for context if required and available.
@@ -104,26 +112,26 @@ Question/Instruction/Statement: {text}
 
 Answer:
 """
-                            responding = True
                             response, conversation_history = llm.get_response(prompt)
-                            # get last word after the last new line
                             response_req = response.split('\n')[-1]
-                            print(response_req)
                             filtered_response = response.split('\n')[:-1]
-                            # convert filtered response to string
                             filtered_response = ' '.join(filtered_response)
-                            is_listening = False
-                            text_to_speech(filtered_response)
+                            print(f"RESPONSE: {filtered_response}")
+                            # text_to_speech(filtered_response)
+                            is_speaking = True
+                            if not filtered_response.strip():
+                                filtered_response = "Sorry, I didn't get that. Can you please try again?"
+                            tts.generate_and_play_audio(filtered_response)
+                            print("#"*100)
                             last_speech_time = time.time()
-                            print("response complete ##############################")
-                            # convert reponse_req to True or false
+                            # Clear the flag after speech playback is complete
+                            is_speaking = False
+                            is_listening = False
                             if response_req.lower() == "true":
-                                response_req = True
-                            else:
-                                response_req = False
-                            is_listening = response_req
-                            responding = False
-                            text  = ""
+                                # time.sleep(0.6)
+                                is_listening = True
+                                text = ""
+                                print("Listening again...")
 
 except KeyboardInterrupt:
     print("\nDone")
