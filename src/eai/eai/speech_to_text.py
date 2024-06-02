@@ -81,7 +81,7 @@ try:
                     is_listening = True
                     last_speech_time = time.time()
                     if is_listening and "stop" in text.lower():
-                     is_listening = False
+                        is_listening = False
 
                 if is_listening:
                     if text.strip():
@@ -117,10 +117,11 @@ Answer:
                             filtered_response = response.split('\n')[:-1]
                             filtered_response = ' '.join(filtered_response)
                             print(f"RESPONSE: {filtered_response}")
-                            # text_to_speech(filtered_response)
                             is_speaking = True
                             if not filtered_response.strip():
                                 filtered_response = "Sorry, I didn't get that. Can you please try again?"
+                                response_req = "true"
+                            # text_to_speech(filtered_response)
                             tts.generate_and_play_audio(filtered_response)
                             print("#"*100)
                             last_speech_time = time.time()
