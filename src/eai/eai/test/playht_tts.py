@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from pydub import AudioSegment
 from pydub.playback import play
 from pyht import Client, TTSOptions, Format

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-import queue
+
 import sys
-import sounddevice as sd
-from vosk import Model, KaldiRecognizer
-from threading import Lock
-from llama import llama3_groq
-from text_to_speech import text_to_speech
-from playht_tts import PlayHTTTS
-import os
 import time
 import json
+import queue
+import sounddevice as sd
+from threading import Lock
+from llama import llama3_groq
+from playht_tts import PlayHTTTS
+from vosk import Model, KaldiRecognizer
+from text_to_speech import text_to_speech
 
 q = queue.Queue()
 
