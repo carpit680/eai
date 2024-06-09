@@ -55,9 +55,9 @@ def text_to_speech(text, speed=1.0):
     speed (float): The speed at which to play the audio (1.0 is normal speed).
     """
     try:
-        start_time = time.time_ns()
+        # start_time = time.time_ns()
         wave_obj = generate_speech(text, speed)
-        print(f"time taken: {(time.time_ns() - start_time)/1e6} ms")
+        # print(f"time taken: {(time.time_ns() - start_time)/1e6} ms")
 
         # Play the audio using simpleaudio (blocking)
         play_obj = wave_obj.play()

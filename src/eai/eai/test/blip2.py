@@ -8,7 +8,7 @@ from transformers import BlipProcessor, BlipForConditionalGeneration, AutoConfig
 
 MODEL_PATH = "Salesforce/blip-image-captioning-large"
 
-with open('blip2-config.json', 'r') as file:
+with open('/home/arpit/eai/eai/src/eai/eai/test/blip2-config.json', 'r') as file:
     config_dict = json.load(file)
 
 

@@ -31,9 +31,14 @@ class kosmos2():
 
         print("Kosmos2 initialized.")
 
-    def ground_frame(self, image):
+    def ground_frame(self, image, prompt=""):
+        if not image:
+            # get image from this path: "/home/arpit/eai/eai/src/eai/eai/test/plant.jpg"
+            image = cv2.imread("/home/arpit/eai/eai/src/eai/eai/test/plant.jpg")
+        if not prompt:
+            prompt = self.prompt
         pil_image = PILImage.fromarray(image)
-        inputs = self.processor(text=self.prompt, images=pil_image, return_tensors="pt").to(self.model.device)
+        inputs = self.processor(text=prompt, images=pil_image, return_tensors="pt").to(self.model.device)
 
         generated_ids = self.model.generate(
             pixel_values=inputs["pixel_values"],
@@ -47,7 +52,10 @@ class kosmos2():
         generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
         processed_text, entities = self.processor.post_process_generation(generated_text)
-        processed_text = processed_text[len(self.prompt)-12:]
+        if "<grounding>" in prompt:
+            processed_text = processed_text[len(prompt)-12:]
+        else:
+            processed_text = processed_text[len(prompt):]
 
         if self.debug:
             for entity in entities:
