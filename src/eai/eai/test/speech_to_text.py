@@ -10,7 +10,9 @@ from llama import llama3_groq
 from playht_tts import PlayHTTTS
 from vosk import Model, KaldiRecognizer
 from text_to_speech import text_to_speech
+from kosmos2 import kosmos2
 
+kosmos = kosmos2(False)
 q = queue.Queue()
 
 llm = llama3_groq(False)
@@ -118,7 +120,30 @@ Question/Instruction/Statement: {text}
 
 Answer:
 """
-                            response, conversation_history = llm.get_response(prompt)
+                            prompt_env = f"""
+Return "True" or "False" as the only response and nothing else based on if the question asked by the user is anyway related to your immediate environment, your surroundings, what you see, or about an object that might be in your view.
+
+Example1:
+    Question/Instruction/Statement: What is the color of the table?
+    Response: True
+
+Example2:
+    Question/Instruction/Statement: What do you see?
+    Response: True
+
+Example3:
+    Question/Instruction/Statement: How is the weather today?
+    Response: False
+
+Question/Instruction/Statement: {text}
+Response:
+"""
+
+                            response_env = llm.get_response(prompt_env, False)
+                            print(f"ENVIRONMENT: {response_env}")
+                            if response_env.lower() == "true":
+
+                            response, conversation_history = llm.get_response(prompt, True)
                             response_req = response.split('\n')[-1]
                             filtered_response = response.split('\n')[:-1]
                             filtered_response = ' '.join(filtered_response)

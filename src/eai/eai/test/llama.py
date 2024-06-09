@@ -12,7 +12,7 @@ class llama3_groq():
         self.conversation_history = []  # Initialize conversation history
         print("Llama3 on Groq initialized.")
     
-    def get_response(self, content):
+    def get_response(self, content, save_history=False):
         # Add current message to conversation history
         prompt = [{"role": "user", "content": content}]
         
@@ -22,13 +22,16 @@ class llama3_groq():
             model="llama3-70b-8192",
         )
 
-        # Add model response to conversation history
-        self.conversation_history.append({"role": "llama3", "content": chat_completion.choices[0].message.content})
         
         if self.debug:
             print(f"RESPONSE: {chat_completion.choices[0].message.content}")
         
-        return chat_completion.choices[0].message.content, self.conversation_history
+        if save_history:
+            # Add model response to conversation history
+            self.conversation_history.append({"role": "llama3", "content": chat_completion.choices[0].message.content})
+            return chat_completion.choices[0].message.content, self.conversation_history
+
+        return chat_completion.choices[0].message.content
 
 if __name__ == "__main__":
     llm = llama3_groq(debug=True)
