@@ -27,10 +27,10 @@ class ImageSubscriber(Node):
         self.image_buffer = deque(maxlen=1)
         self.bridge = CvBridge()
         self.get_logger().info("Listening for RGB images on /camera/color/image_raw")
-        self.kosmos = kosmos2(self.get_logger, debug=True)
-        self.llama = llama3_groq(self.get_logger, debug=True)
+        self.kosmos = kosmos2(debug=True)
+        self.llm = llama3_groq(self.get_logger, debug=True)
 
-        with open("/home/arpit/eai/eai/src/eai/eai/env_prompt.txt", 'r') as file:
+        with open("/home/arpit/eai/eai/src/eai/config/env_prompt.txt", 'r') as file:
             self.env_prompt = file.read()
 
     def image_callback(self, msg):
@@ -38,15 +38,15 @@ class ImageSubscriber(Node):
             cv_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
             
             self.image_buffer.append(cv_image)
-            processed_text, entities, captioned_image = self.kosmos.ground_frame(cv_image)
-            self.image_pub.publish(self.bridge.cv2_to_imgmsg(captioned_image, "rgb8"))
+            # processed_text, entities, captioned_image = self.kosmos.ground_frame(cv_image)
+            # self.image_pub.publish(self.bridge.cv2_to_imgmsg(captioned_image, "rgb8"))
 
-            final_env_prompt = "The text below is the description of an environment as seen by a camera./n" + processed_text + self.env_prompt
-            env_description = self.llama.get_response(final_env_prompt)
-            env_description = env_description[env_description.find("```") + 3: env_description.find("```", env_description.find("```") + 3)]
-            self.get_logger().info("#############################")
-            self.get_logger().info(env_description)
-            self.get_logger().info("#############################")
+            # final_env_prompt = "The text below is the description of an environment as seen by a camera./n" + processed_text + self.env_prompt
+            # env_description = self.llm.get_response(final_env_prompt)
+            # env_description = env_description[env_description.find("```") + 3: env_description.find("```", env_description.find("```") + 3)]
+            # self.get_logger().info("#############################")
+            # self.get_logger().info(env_description)
+            # self.get_logger().info("#############################")
 
         except Exception as e:
             self.get_logger().error(f"{e}")

@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'main_node = eai.main_node:main'
+            'main = eai.main:main'
         ],
     },
 )
