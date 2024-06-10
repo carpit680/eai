@@ -93,7 +93,7 @@ class EaiPipeline(Node):
                         result = json.loads(self.rec.Result())
                         text = result.get('text', '')
                         if not is_listening and self.name in text.lower():
-                            print(f"Detected with Keyword: {text}")
+                            print("Detected keyword!")
                             last_speech_time = time.time()
                             is_listening = True
                             if "stop" in text.lower():
@@ -115,10 +115,9 @@ class EaiPipeline(Node):
                             elif text.strip():
                                 if time.time() - last_speech_time > silence_threshold:
                                     print(f"REQUEST: {text}")
+                                    # NOTE: You can see around in your environment using a Vision Language Model (VLM). If you have any queries about the environment or your surroundings or what you see or about an object that might be in your view then respond with your query.
                                     prompt_env = f"""
-NOTE: You can see around in your environment using a Vision Language Model (VLM). If you have any queries about the environment or your surroundings or what you see or about an object that might be in your view then respond with your query.
-
-INSTRUCTION: Based on if the question asked by the user is anyway related to your immediate environment, your surroundings, what you see, or about an object that might be in your view answer "False" or a question you would like to ask the VLM. Phrase your question as a prompt to the VLM
+INSTRUCTION: You can see around in your environment using a Vision Language Model (VLM). Based on if the question asked by the user is anyway related to your immediate environment, your surroundings, what you see, or about an object that might be in your view answer with a question you would like to ask the VLM. Phrase your question as a prompt to the VLM. Frame the question as if you are asking about an image.
 
 Example1:
 Question/Instruction/Statement: what is the color of the table
@@ -129,12 +128,12 @@ Question/Instruction/Statement: what do you see
 Response: <grounding> Describe every object in detail with their relative locations in the environment: 
 
 Example3:
-Question/Instruction/Statement: how is the weather today
+Question/Instruction/Statement: what should I wear today
 Response: False
 
 Example4:
-Question/Instruction/Statement: yes please
-Response: False
+Question/Instruction/Statement: what color is the pot
+Response: What is the color of the pot in the image?
 
 Example5:
 Question/Instruction/Statement: where is the plant
@@ -147,10 +146,10 @@ Response:
                                     response_env = self.llm.get_response(prompt_env, False)
                                     # print(f"response_env: {response_env}")
                                     if response_env.lower() != "false":
-                                        self.get_logger().info(f"Question to VLM: {response_env}")
+                                        self.get_logger().info(f"VLM REQUEST: {response_env}")
                                         env_image = self.image_subscriber.get_latest_frame()
                                         env_description, entities, captioned_image = self.kosmos.ground_frame(env_image, prompt=response_env)
-
+                                        self.get_logger().info(f"VLM RESPONSE: {env_description}")
                                         # print(f"env_description: {env_description}")
                                     
                                     prompt = f"""
@@ -177,6 +176,7 @@ Response:
                                     filtered_response = ' '.join(filtered_response)
                                     self.is_speaking = True
                                     if not filtered_response.strip():
+                                        # print("filtered_response" + filtered_response)
                                         filtered_response = "Sorry, I didn't get that. Can you please try again?"
                                         response_req = "true"
                                     print(f"RESPONSE: {filtered_response}")
