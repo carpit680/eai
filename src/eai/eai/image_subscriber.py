@@ -43,7 +43,6 @@ class ImageSubscriber(Node):
 
         self.image_buffer = deque(maxlen=1)
         self.bridge = CvBridge()
-        self.image_lock = Lock()
         self.get_logger().info("Listening for RGB images on /camera/color/image_raw")
 
     def _image_callback(self, msg):
@@ -61,8 +60,7 @@ class ImageSubscriber(Node):
         """
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
-            with self.image_lock:
-                self.image_buffer.append(cv_image)
+            self.image_buffer.append(cv_image)
         except Exception as e:
             self.get_logger().error(f"{e}")
     
@@ -76,7 +74,6 @@ class ImageSubscriber(Node):
             numpy.ndarray: The latest frame from the image buffer.
 
         """
-        with self.image_lock:
-            if len(self.image_buffer) == 0:
-                raise Exception("No image received yet")
-            return self.image_buffer[0]
+        if len(self.image_buffer) == 0:
+            raise Exception("No image received yet")
+        return self.image_buffer.popleft()
