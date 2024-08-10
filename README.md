@@ -1,2 +1,2 @@
-# eai
-A repository for my implementation of Embodied-AI as a ROS2 package. Goal is to make it pretty straightforward to integrate this into any generous purpose autonomous robot or home automation application.
+# eai-ros
+A repository for my implementation of Embodied-AI as a ROS2 package. The goal is to make it straightforward to integrate this into any generous purpose autonomous robot or home automation application.
