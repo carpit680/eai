@@ -6,6 +6,7 @@ from cv_bridge import CvBridge
 from eai_interfaces.srv import Instruction
 import cv2
 import base64
+from eai.get_ip import get_ip
 
 # Image to Base 64 Converter
 def image_to_base64(image):
@@ -71,7 +72,9 @@ class GradioClient(Node):
         server_port = 7860
         while rclpy.ok():
             try:
-                demo.launch(server_name="192.168.51.120", server_port=server_port, share=True)
+                server_name=str(get_ip())
+                self.get_logger().info(f"Starting Gradio server on {server_name}:{server_port}.")
+                demo.launch(server_name=server_name, server_port=server_port, share=True)
                 break
             except Exception as e:
                 print(f"Server port {server_port} is not available. Trying again...")

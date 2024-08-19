@@ -17,7 +17,7 @@ def random_color():
 class kosmos2():
     def __init__(self, debug):
         model_path = "microsoft/kosmos-2-patch14-224"
-        config_path = "/home/arpit/eai/eai/src/eai/config/kosmos2-config.json"
+        config_path = "/home/arpit/eai/eai-ros/src/eai/config/kosmos2-config.json"
         self.prompt = "<grounding> Describe every object in detail with their relative locations in the environment: "
         
         with open(config_path, 'r') as file:
