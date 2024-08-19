@@ -37,6 +37,8 @@ class kosmos2():
             # image = cv2.imread("/home/arpit/eai/eai/src/eai/eai/test/plant.jpg")
         if not prompt:
             prompt = self.prompt
+        # cv2.imshow("image", image)
+        # cv2.waitKey(0)
         pil_image = PILImage.fromarray(image)
         inputs = self.processor(text=prompt, images=pil_image, return_tensors="pt").to(self.model.device)
 
@@ -52,6 +54,7 @@ class kosmos2():
         generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
         processed_text, entities = self.processor.post_process_generation(generated_text)
+        # print(processed_text)
         if "<grounding>" in prompt:
             processed_text = processed_text[len(prompt)-12:]
         else:

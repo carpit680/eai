@@ -10,6 +10,11 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name, ['launch/eai.launch.py']),
+        ('share/' + package_name, ['launch/rs_launch.py']),
+        ('share/' + package_name, ['config/camera_config.yaml']),
+
+
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -20,7 +25,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'main = eai.main:main'
+            'main = eai.main:main',
+            'gradio_node = eai.gradio_node:main'
         ],
     },
 )

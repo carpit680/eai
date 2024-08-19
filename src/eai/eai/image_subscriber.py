@@ -36,7 +36,7 @@ class ImageSubscriber(Node):
         super().__init__('image_subscriber')
         self.subscription = self.create_subscription(
             Image,
-            '/camera/color/image_raw',
+            'camera/camera/color/image_raw',
             self._image_callback,
             10
         )
@@ -59,6 +59,7 @@ class ImageSubscriber(Node):
             Exception: If an error occurs while processing the image.
         """
         try:
+            # print("got image")
             cv_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
             self.image_buffer.append(cv_image)
         except Exception as e:
@@ -75,5 +76,5 @@ class ImageSubscriber(Node):
 
         """
         if len(self.image_buffer) == 0:
-            raise Exception("No image received yet")
+            print("No image received yet")
         return self.image_buffer.popleft()

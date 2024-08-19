@@ -6,68 +6,57 @@ import json
 import queue
 import sounddevice as sd
 from rclpy.node import Node
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
-from threading import Thread
-from vosk import Model, KaldiRecognizer
-
-from eai.kosmos2 import kosmos2
+from threading import Lock
 from eai.llama import llama3_groq
 from eai.playht_tts import PlayHTTTS
-from eai_interfaces.srv import Instruction
+from vosk import Model, KaldiRecognizer
 from eai.text_to_speech import text_to_speech
+from eai.kosmos2 import kosmos2
+from cv_bridge import CvBridge
+from collections import deque
+from sensor_msgs.msg import Image
 from eai.image_subscriber import ImageSubscriber
+from threading import Thread
 
 
 class EaiPipeline(Node):
-    def __init__(self, agent_name="nori"):
+    def __init__(self, agent_name="travis"):
         super().__init__('eai_pipeline')
         self.image_subscriber = ImageSubscriber()
 
-        self.srv = self.create_service(Instruction, 'eai_server', self.process_instruction_callback)
-        self.kosmos = kosmos2(True)
+        self.q = queue.Queue()
+        self.listening_lock = Lock()
+        self.kosmos = kosmos2(False)
         self.llm = llama3_groq(False)
 
         self.name = agent_name
-        self.conversation_history= []
+        self.is_speaking = False
+        self.device = None
+        self.listening_thread = Thread(target=self.start_listening)
+        try:
+            model = Model(lang="en-us")
+        except Exception as e:
+            print(f"Error loading Vosk model: {e}", file=sys.stderr)
+            sys.exit(1)
 
-        audio = False
-        if audio:
-            self.q = queue.Queue()
-            self.is_speaking = False
-            self.device = None
-            self.listening_thread = Thread(target=self.start_listening)
-            try:
-                model = Model(lang="en-us")
-            except Exception as e:
-                print(f"Error loading Vosk model: {e}", file=sys.stderr)
-                sys.exit(1)
+        try:
+            device_info = sd.query_devices(self.device, "input")
+            self.samplerate = int(device_info["default_samplerate"])
+        except Exception as e:
+            print(f"Error querying devices: {e}", file=sys.stderr)
+            sys.exit(1)
 
-            try:
-                device_info = sd.query_devices(self.device, "input")
-                self.samplerate = int(device_info["default_samplerate"])
-            except Exception as e:
-                print(f"Error querying devices: {e}", file=sys.stderr)
-                sys.exit(1)
+        self.rec = KaldiRecognizer(model, self.samplerate)
 
-            self.rec = KaldiRecognizer(model, self.samplerate)
+        try:
+            playht_tts = PlayHTTTS()
+            self.tts = playht_tts.generate_and_play_audio
+        except:
+            print("PlayHTTTS out of credits. Using text_to_speech.")
+            self.tts = text_to_speech
 
-            try:
-                playht_tts = PlayHTTTS()
-                self.tts = playht_tts.generate_and_play_audio
-            except:
-                print("PlayHTTTS out of credits. Using text_to_speech.")
-                self.tts = text_to_speech
-            self.listening_thread.start()
+        self.listening_thread.start()
 
-    
-    def process_instruction_callback(self, request, response):
-        # self.get_logger().info(f"Received instruction: {request.request}")
-        result = self.get_response(request.request)
-        if result[1] is not None:
-            response.image = CvBridge().cv2_to_imgmsg(result[1], encoding="bgr8")
-        response.response = result[0]
-        return response
 
     def callback(self, indata, frames, time, status):
         """This is called (from a separate thread) for each audio block."""
@@ -77,89 +66,11 @@ class EaiPipeline(Node):
             self.q.put(bytes(indata))
 
 
-    def get_response(self, request):
-        text = request
-        captioned_image = None
-        if text:
-            prompt_env = f"""
-INSTRUCTION: You can see around in your environment using a Vision Language Model (VLM). Based on if the question asked by the user is anyway related to your immediate environment, your surroundings, what you see, or about an object that might be in your view answer with a question you would like to ask the VLM. Phrase your question as a prompt to the VLM. Frame the question as if you are asking about an image.
-
-Example1:
-Question/Instruction/Statement: what is the color of the table
-Response: What is the color of the table?
-
-Example2:
-Question/Instruction/Statement: what do you see
-Response: <grounding> Describe every object in detail with their relative locations in the environment: 
-
-Example3:
-Question/Instruction/Statement: what should I wear today
-Response: False
-
-Example4:
-Question/Instruction/Statement: what color is the pot
-Response: What is the color of the pot in the image?
-
-Example5:
-Question/Instruction/Statement: where is the plant
-Response: <grounding> Where is the plant placed relative to other objects in the room?
-
-Example6:
-Question/Instruction/Statement: hi
-Response: <grounding> False
-
-Question/Instruction/Statement: {text}
-Response:
-"""
-
-            response_env = self.llm.get_response(prompt_env, False)
-            # filtered_grounding = response_env.replace("<grounding> ", "")
-            env_description = ""
-            # print(f"response_env: {response_env}")
-            if "false" not in response_env.lower():
-                self.get_logger().info(f"VLM REQUEST: {response_env}")
-                env_image = self.image_subscriber.get_latest_frame()
-                # self.get_logger().info(f"env_image: {env_image.shape}")
-                env_description, entities, captioned_image = self.kosmos.ground_frame(env_image, prompt=response_env)
-                self.get_logger().info(f"VLM RESPONSE: {env_description}")
-                # print(f"env_description: {env_description}")
-            
-            prompt = f"""
-    You are an embodied personal AI assistant named {self.name}. Reply in brief to the following question/instruction
-
-    NOTE: Answer in a friendly conversational tone so that it can smoothly be converted to speech. Do not use any symbols or special characters that would be awkward in a conversation. Use your response history given below for context if required and available.
-
-    NOTE: If your response to the question/instruction/Statement from the user requires a response from the user or your response is a question then add the last keyword to the response as "True" else "False" in the next line.
-
-    NOTE: You can see around in your environement using a Vision Language Model. Use information provided in "Environment Description" below if needed to answer any question related to your surroundings or what you see or objects in your view. Do not add anything that does not exist in the environment descriptionn to your response.
-
-    NOTE: If you are asked to do something then reply with how it should be done step by step while explaining your reasoning and the steps you would take to do it considering that you have a robot body.
-
-    Environment Description: {env_description}
-
-    Response history: {str(self.conversation_history)}
-
-    Question/Instruction/Statement: {text}
-
-    Answer:
-    """
-            # print(f"prompt: {prompt}")
-            response, self.conversation_history= self.llm.get_response(prompt, True)
-            response_req = response.split('\n')[-1]
-            filtered_response = response.split('\n')[:-1]
-            filtered_response = ' '.join(filtered_response)
-            # self.is_speaking = True
-            self.get_logger().info(f"RESPONSE: {filtered_response}")
-            if not filtered_response.strip():
-                filtered_response = "Sorry, I didn't get that. Can you please try again?"
-            return filtered_response, captioned_image
-
-
     def start_listening(self):
         is_listening = False
         last_speech_time = time.time()
         silence_threshold = 0.5
-        self.conversation_history= []
+        conversation_history= []
         env_description = ''
         text = ''
         print("#"*100)
@@ -203,7 +114,7 @@ Response:
                                 last_speech_time = time.time()
                             elif text.strip():
                                 if time.time() - last_speech_time > silence_threshold:
-                                    # print(f"REQUEST: {text}")
+                                    print(f"REQUEST: {text}")
                                     # NOTE: You can see around in your environment using a Vision Language Model (VLM). If you have any queries about the environment or your surroundings or what you see or about an object that might be in your view then respond with your query.
                                     prompt_env = f"""
 INSTRUCTION: You can see around in your environment using a Vision Language Model (VLM). Based on if the question asked by the user is anyway related to your immediate environment, your surroundings, what you see, or about an object that might be in your view answer with a question you would like to ask the VLM. Phrase your question as a prompt to the VLM. Frame the question as if you are asking about an image.
@@ -235,10 +146,10 @@ Response:
                                     response_env = self.llm.get_response(prompt_env, False)
                                     # print(f"response_env: {response_env}")
                                     if response_env.lower() != "false":
-                                        # self.get_logger().info(f"VLM REQUEST: {response_env}")
+                                        self.get_logger().info(f"VLM REQUEST: {response_env}")
                                         env_image = self.image_subscriber.get_latest_frame()
                                         env_description, entities, captioned_image = self.kosmos.ground_frame(env_image, prompt=response_env)
-                                        # self.get_logger().info(f"VLM RESPONSE: {env_description}")
+                                        self.get_logger().info(f"VLM RESPONSE: {env_description}")
                                         # print(f"env_description: {env_description}")
                                     
                                     prompt = f"""
@@ -252,14 +163,14 @@ Response:
 
     Environment Description: {env_description}
 
-    Response history: {str(self.conversation_history)}
+    Response history: {str(conversation_history)}
 
     Question/Instruction/Statement: {text}
 
     Answer:
     """
                                     # print(f"prompt: {prompt}")
-                                    response, self.conversation_history= self.llm.get_response(prompt, True)
+                                    response, conversation_history= self.llm.get_response(prompt, True)
                                     response_req = response.split('\n')[-1]
                                     filtered_response = response.split('\n')[:-1]
                                     filtered_response = ' '.join(filtered_response)
@@ -268,7 +179,7 @@ Response:
                                         # print("filtered_response" + filtered_response)
                                         filtered_response = "Sorry, I didn't get that. Can you please try again?"
                                         response_req = "true"
-                                    # print(f"RESPONSE: {filtered_response}")
+                                    print(f"RESPONSE: {filtered_response}")
                                     self.tts(filtered_response, 1.3)
                                     print("#"*100)
                                     last_speech_time = time.time()
